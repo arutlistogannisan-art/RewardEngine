@@ -196,5 +196,7 @@ Publisher confirmation behavior follows the [RabbitMQ .NET guide](https://www.ra
 
 ## Learning
 
-[INTERVIEW_GUIDE.md](INTERVIEW_GUIDE.md) explains the code in Russian, contains 30 interview questions and a study sequence. [VERIFICATION.md](VERIFICATION.md) records the checks actually executed for the delivered version.
+## Verification
+
+[VERIFICATION.md](VERIFICATION.md) contains the checks executed for this version.
 

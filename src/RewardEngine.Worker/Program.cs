@@ -1,0 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using RewardEngine.Application;
+using RewardEngine.Infrastructure;
+using RewardEngine.Worker;
+using Serilog;
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSerilog((services, logger) => logger.ReadFrom.Configuration(builder.Configuration).Enrich.FromLogContext());
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<CashbackCalculator>();
+builder.Services.AddHostedService<OutboxPublisherService>();
+builder.Services.AddHostedService<TransactionConsumerService>();
+var host = builder.Build();
+using (var scope = host.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<RewardEngineDbContext>().Database.MigrateAsync();
+await host.RunAsync();

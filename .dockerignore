@@ -1,0 +1,6 @@
+**/bin
+**/obj
+.git
+.dotnet-home
+.appdata
+global.json

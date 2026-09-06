@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rewardengine
+      POSTGRES_USER: rewardengine
+      POSTGRES_PASSWORD: rewardengine_dev
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rewardengine -d rewardengine"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: rewardengine
+      RABBITMQ_DEFAULT_PASS: rewardengine_dev
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      args:
+        PROJECT: src/RewardEngine.Api/RewardEngine.Api.csproj
+        DLL: RewardEngine.Api.dll
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=rewardengine;Username=rewardengine;Password=rewardengine_dev
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
+      ConnectionStrings__RabbitMq: amqp://rewardengine:rewardengine_dev@rabbitmq:5672/
+    ports: ["127.0.0.1:5000:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      args:
+        PROJECT: src/RewardEngine.Worker/RewardEngine.Worker.csproj
+        DLL: RewardEngine.Worker.dll
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=rewardengine;Username=rewardengine;Password=rewardengine_dev
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
+      ConnectionStrings__RabbitMq: amqp://rewardengine:rewardengine_dev@rabbitmq:5672/
+    depends_on:
+      api: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
